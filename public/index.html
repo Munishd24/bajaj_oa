@@ -37,14 +37,8 @@ async function send() {
       body: JSON.stringify({ data })
     });
 
-    const text = await res.text();
-
-    try {
-      const json = JSON.parse(text);
-      output.innerText = JSON.stringify(json, null, 2);
-    } catch {
-      error.innerText = "Server returned HTML instead of JSON:\n" + text;
-    }
+    const json = await res.json();
+    output.innerText = JSON.stringify(json, null, 2);
 
   } catch (e) {
     error.innerText = e.message;

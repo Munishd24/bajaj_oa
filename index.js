@@ -8,15 +8,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Your details
-const USER_ID = "yourname_ddmmyyyy";
-const EMAIL_ID = "your@email.com";
-const COLLEGE_ROLL = "yourrollnumber";
+// Your details (UPDATE THESE)
+const USER_ID = "munishd_24112005";
+const EMAIL_ID = "munishd.work@gmail.com";
+const COLLEGE_ROLL = "RA2311004020042";
 
-// Validation
+// Validate input
 function isValidEntry(entry) {
   if (typeof entry !== "string") return false;
-  const cleaned = entry.replace(/\s+/g, ''); // remove spaces
+  const cleaned = entry.replace(/\s+/g, '');
   return /^[A-Z]->[A-Z]$/.test(cleaned);
 }
 
@@ -53,7 +53,6 @@ function processData(data) {
     const [parent, child] = edge.split('->');
 
     if (parentCount[child] !== undefined) continue;
-
     parentCount[child] = parent;
 
     if (!children[parent]) children[parent] = [];
@@ -97,10 +96,15 @@ function processData(data) {
     return obj;
   }
 
+  const depthMemo = {};
   function getDepth(node) {
+    if (depthMemo[node]) return depthMemo[node];
+
     const kids = children[node] || [];
-    if (kids.length === 0) return 1;
-    return 1 + Math.max(...kids.map(getDepth));
+    if (kids.length === 0) return depthMemo[node] = 1;
+
+    return depthMemo[node] =
+      1 + Math.max(...kids.map(getDepth));
   }
 
   const hierarchies = [];
@@ -140,7 +144,7 @@ function processData(data) {
 
 // API route
 app.post('/bfhl', (req, res) => {
-  console.log("BFHL API HIT");
+  console.log("API HIT");
 
   if (!req.body || !Array.isArray(req.body.data)) {
     return res.status(400).json({ error: "data must be an array" });
@@ -157,22 +161,19 @@ app.post('/bfhl', (req, res) => {
   });
 });
 
-// Optional GET routes (for browser clarity)
-app.get('/', (req, res) => {
-  res.send("BFHL Backend running. Use POST /bfhl");
-});
-
+// Optional GET for clarity
 app.get('/bfhl', (req, res) => {
-  res.json({
-    message: "Use POST method",
-    endpoint: "/bfhl"
-  });
+  res.json({ message: "Use POST /bfhl" });
 });
 
-// Serve frontend
+// Serve frontend (IMPORTANT)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Start server
-app.listen(3000, () => {
-  console.log('Server running on port 3000');
+// Root → UI
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// Start server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
