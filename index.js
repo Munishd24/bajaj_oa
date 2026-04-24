@@ -9,9 +9,9 @@ app.use(cors());
 app.use(express.json());
 
 
-const USER_ID = "munishd_24112005";
-const EMAIL_ID = "munishd.work@gmail.com";
-const COLLEGE_ROLL = "RA2311004020042";
+const USER_ID = "munishd";
+const EMAIL_ID = "munishd@gmail.com";
+const COLLEGE_ROLL = "RA231100*****";
 
 
 function isValidEntry(entry) {
