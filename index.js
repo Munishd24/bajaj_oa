@@ -4,46 +4,48 @@ const path = require('path');
 
 const app = express();
 
-
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-
+// Your details
 const USER_ID = "yourname_ddmmyyyy";
 const EMAIL_ID = "your@email.com";
 const COLLEGE_ROLL = "yourrollnumber";
 
+// Validation
 function isValidEntry(entry) {
   if (typeof entry !== "string") return false;
-  const trimmed = entry.trim();
-  const regex = /^[A-Z]->[A-Z]$/;
-  return regex.test(trimmed);
+  const cleaned = entry.replace(/\s+/g, ''); // remove spaces
+  return /^[A-Z]->[A-Z]$/.test(cleaned);
 }
 
+// Core logic
 function processData(data) {
   const invalid_entries = [];
   const duplicate_edges = [];
   const validEdges = [];
   const seenEdges = new Set();
 
-  // Step 1: Validate and deduplicate
   for (let entry of data) {
-    const trimmed = typeof entry === "string" ? entry.trim() : "";
-    if (!isValidEntry(trimmed)) {
+    const cleaned = typeof entry === "string" ? entry.replace(/\s+/g, '') : "";
+
+    if (!isValidEntry(cleaned)) {
       invalid_entries.push(entry);
       continue;
     }
-    if (seenEdges.has(trimmed)) {
-      if (!duplicate_edges.includes(trimmed)) {
-        duplicate_edges.push(trimmed);
+
+    if (seenEdges.has(cleaned)) {
+      if (!duplicate_edges.includes(cleaned)) {
+        duplicate_edges.push(cleaned);
       }
       continue;
     }
-    seenEdges.add(trimmed);
-    validEdges.push(trimmed);
+
+    seenEdges.add(cleaned);
+    validEdges.push(cleaned);
   }
 
-  // Step 2: Build adjacency
   const children = {};
   const parentCount = {};
 
@@ -51,13 +53,13 @@ function processData(data) {
     const [parent, child] = edge.split('->');
 
     if (parentCount[child] !== undefined) continue;
+
     parentCount[child] = parent;
 
     if (!children[parent]) children[parent] = [];
     children[parent].push(child);
   }
 
-  // Step 3: Collect nodes
   const allNodes = new Set();
   for (let edge of validEdges) {
     const [p, c] = edge.split('->');
@@ -65,46 +67,25 @@ function processData(data) {
     allNodes.add(c);
   }
 
-  // Step 4: Find roots
   const childNodes = new Set(Object.keys(parentCount));
   const roots = [...allNodes].filter(n => !childNodes.has(n));
 
-  // Step 5: BFS connected nodes
-  function getConnectedNodes(startNode) {
-    const visited = new Set();
-    const queue = [startNode];
-    visited.add(startNode);
-
-    while (queue.length) {
-      const node = queue.shift();
-      for (let child of (children[node] || [])) {
-        if (!visited.has(child)) {
-          visited.add(child);
-          queue.push(child);
-        }
-      }
-    }
-    return visited;
-  }
-
-  // Step 6: Cycle detection
-  function hasCycle(node, visited, recStack) {
+  function hasCycle(node, visited, stack) {
     visited.add(node);
-    recStack.add(node);
+    stack.add(node);
 
     for (let child of (children[node] || [])) {
       if (!visited.has(child)) {
-        if (hasCycle(child, visited, recStack)) return true;
-      } else if (recStack.has(child)) {
+        if (hasCycle(child, visited, stack)) return true;
+      } else if (stack.has(child)) {
         return true;
       }
     }
 
-    recStack.delete(node);
+    stack.delete(node);
     return false;
   }
 
-  // Step 7: Build tree
   function buildTree(node, visited = new Set()) {
     if (visited.has(node)) return {};
     visited.add(node);
@@ -116,117 +97,82 @@ function processData(data) {
     return obj;
   }
 
-  // Step 8: Depth
-  function getDepth(node, visited = new Set()) {
-    if (visited.has(node)) return 0;
-    visited.add(node);
-
+  function getDepth(node) {
     const kids = children[node] || [];
     if (kids.length === 0) return 1;
-
-    return 1 + Math.max(...kids.map(c => getDepth(c, new Set(visited))));
+    return 1 + Math.max(...kids.map(getDepth));
   }
 
-  // Step 9: Build hierarchies
   const hierarchies = [];
-  const processedNodes = new Set();
 
-  const sortedRoots = roots.sort();
-
-  for (let root of sortedRoots) {
-    const connected = getConnectedNodes(root);
-    connected.forEach(n => processedNodes.add(n));
-
-    const cycleCheck = hasCycle(root, new Set(), new Set());
-
-    if (cycleCheck) {
-      hierarchies.push({
-        root,
-        tree: {},
-        has_cycle: true
-      });
+  for (let root of roots.sort()) {
+    if (hasCycle(root, new Set(), new Set())) {
+      hierarchies.push({ root, tree: {}, has_cycle: true });
     } else {
       const tree = { [root]: buildTree(root) };
       const depth = getDepth(root);
-
       hierarchies.push({ root, tree, depth });
     }
   }
 
-  // Step 10: Handle pure cycles
-  const remaining = [...allNodes].filter(n => !processedNodes.has(n)).sort();
-  const visitedRemaining = new Set();
-
-  for (let node of remaining) {
-    if (visitedRemaining.has(node)) continue;
-
-    const group = new Set();
-    const q = [node];
-
-    while (q.length) {
-      const curr = q.shift();
-      if (group.has(curr)) continue;
-
-      group.add(curr);
-      for (let child of (children[curr] || [])) q.push(child);
-    }
-
-    group.forEach(n => visitedRemaining.add(n));
-
-    const root = [...group].sort()[0];
-
-    hierarchies.push({
-      root,
-      tree: {},
-      has_cycle: true
-    });
-  }
-
-  // Summary
   const nonCyclic = hierarchies.filter(h => !h.has_cycle);
   const cyclic = hierarchies.filter(h => h.has_cycle);
 
   let largest_tree_root = "";
-
   if (nonCyclic.length > 0) {
-    const sorted = nonCyclic.sort((a, b) => {
-      if (b.depth !== a.depth) return b.depth - a.depth;
-      return a.root.localeCompare(b.root);
-    });
+    const sorted = nonCyclic.sort((a, b) =>
+      b.depth - a.depth || a.root.localeCompare(b.root)
+    );
     largest_tree_root = sorted[0].root;
   }
 
-  const summary = {
-    total_trees: nonCyclic.length,
-    total_cycles: cyclic.length,
-    largest_tree_root
+  return {
+    invalid_entries,
+    duplicate_edges,
+    hierarchies,
+    summary: {
+      total_trees: nonCyclic.length,
+      total_cycles: cyclic.length,
+      largest_tree_root
+    }
   };
-
-  return { invalid_entries, duplicate_edges, hierarchies, summary };
 }
 
-//Route (FIXED VALIDATION)
+// API route
 app.post('/bfhl', (req, res) => {
+  console.log("BFHL API HIT");
+
   if (!req.body || !Array.isArray(req.body.data)) {
     return res.status(400).json({ error: "data must be an array" });
   }
 
   const { data } = req.body;
-  const result = rocessData(data);
+  const result = processData(data);
 
-  return res.status(200).json({
+  res.json({
     user_id: USER_ID,
     email_id: EMAIL_ID,
     college_roll_number: COLLEGE_ROLL,
-    hierarchies: result.hierarchies,
-    invalid_entries: result.invalid_entries,
-    duplicate_edges: result.duplicate_edges,
-    summary: result.summary
+    ...result
   });
 });
 
-// Static filesp
+// Optional GET routes (for browser clarity)
+app.get('/', (req, res) => {
+  res.send("BFHL Backend running. Use POST /bfhl");
+});
+
+app.get('/bfhl', (req, res) => {
+  res.json({
+    message: "Use POST method",
+    endpoint: "/bfhl"
+  });
+});
+
+// Serve frontend
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Server
-app.listen(3000, () => console.log('Server running on port 3000'));
+// Start server
+app.listen(3000, () => {
+  console.log('Server running on port 3000');
+});

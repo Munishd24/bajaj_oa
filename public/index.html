@@ -1,76 +1,32 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tree node</title>
-  <style>
-    body {
-      font-family: Arial;
-      padding: 40px;
-      background: #f5f5f5;
-    }
-
-    .box {
-      max-width: 700px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-    }
-
-    textarea {
-      width: 100%;
-      height: 100px;
-      margin-top: 10px;
-      padding: 10px;
-    }
-
-    button {
-      margin-top: 10px;
-      padding: 10px 20px;
-      cursor: pointer;
-    }
-
-    pre {
-      background: #eee;
-      padding: 10px;
-      margin-top: 20px;
-      overflow-x: auto;
-    }
-
-    .error {
-      color: red;
-      margin-top: 10px;
-    }
-  </style>
+  <title>Tree Node</title>
 </head>
-
 <body>
 
-<div class="box">
-  <h2>Tree Node test</h2>
-  <p>Enter edges like: A->B, B->C</p>
+<h2>Tree Node Test</h2>
+<p>Enter edges like: A->B, B->C</p>
 
-  <textarea id="input"></textarea>
-  <br>
-  <button onclick="send()">Submit</button>
+<textarea id="input" rows="5" cols="50"></textarea><br>
+<button onclick="send()">Submit</button>
 
-  <div id="error" class="error"></div>
-  <pre id="output"></pre>
-</div>
+<p id="error" style="color:red;"></p>
+<pre id="output"></pre>
 
 <script>
 async function send() {
   const raw = document.getElementById('input').value;
-  const errorDiv = document.getElementById('error');
+  const error = document.getElementById('error');
   const output = document.getElementById('output');
 
-  errorDiv.innerText = "";
+  error.innerText = "";
   output.innerText = "";
 
   const data = raw.split(/[\n,]/).map(s => s.trim()).filter(Boolean);
 
   if (data.length === 0) {
-    errorDiv.innerText = "Enter something";
+    error.innerText = "Enter something";
     return;
   }
 
@@ -81,11 +37,17 @@ async function send() {
       body: JSON.stringify({ data })
     });
 
-    const json = await res.json();
-    output.innerText = JSON.stringify(json, null, 2);
+    const text = await res.text();
+
+    try {
+      const json = JSON.parse(text);
+      output.innerText = JSON.stringify(json, null, 2);
+    } catch {
+      error.innerText = "Server returned HTML instead of JSON:\n" + text;
+    }
 
   } catch (e) {
-    errorDiv.innerText = "Error: " + e.message;
+    error.innerText = e.message;
   }
 }
 </script>
