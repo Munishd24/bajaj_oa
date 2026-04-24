@@ -4,23 +4,23 @@ const path = require('path');
 
 const app = express();
 
-// Middleware
+
 app.use(cors());
 app.use(express.json());
 
-// Your details (UPDATE THESE)
+
 const USER_ID = "munishd_24112005";
 const EMAIL_ID = "munishd.work@gmail.com";
 const COLLEGE_ROLL = "RA2311004020042";
 
-// Validate input
+
 function isValidEntry(entry) {
   if (typeof entry !== "string") return false;
   const cleaned = entry.replace(/\s+/g, '');
   return /^[A-Z]->[A-Z]$/.test(cleaned);
 }
 
-// Core logic
+
 function processData(data) {
   const invalid_entries = [];
   const duplicate_edges = [];
@@ -142,7 +142,7 @@ function processData(data) {
   };
 }
 
-// API route
+
 app.post('/bfhl', (req, res) => {
   console.log("API HIT");
 
@@ -161,19 +161,19 @@ app.post('/bfhl', (req, res) => {
   });
 });
 
-// Optional GET for clarity
+
 app.get('/bfhl', (req, res) => {
   res.json({ message: "Use POST /bfhl" });
 });
 
-// Serve frontend (IMPORTANT)
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Root → UI
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start server
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
